@@ -22,7 +22,7 @@ const char* ssid = "JAM GADANG";
 const char* password = "bukittinggi";
 
 // Endpoint API untuk menerima data dari IoT (Arahkan ke route baru)
-const char* serverUrl = "https://aqua-vion.vercel.app/api/sensor";
+const char* serverUrl = "https://aqua-vion.vercel.app/api/mqtt/receive";
 const char* host = "104.214.185.159";
 const uint16_t port = 1884;
 
@@ -131,6 +131,7 @@ void sendDataToVercel() {
     JsonDocument doc;
     doc["userId"] = userId;
     doc["device_id"] = device_id;
+    doc["ssid"] = WiFi.SSID(); // Mengirimkan nama WiFi yang sedang terhubung
     doc["temperature"] = g_suhuC;
     doc["ph"] = g_nilaiPH;
     doc["turbidity"] = g_analogTurbidity;
