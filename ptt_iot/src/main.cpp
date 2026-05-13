@@ -8,7 +8,7 @@
 // ==========================================
 // 1. DEKLARASI PIN SENSOR & AKTUATOR
 // ==========================================
-#define PIN_SUHU       4   // Sensor DS18B20
+#define PIN_SUHU       26   // Sensor DS18B20
 #define PIN_PH         34  // Sensor pH (Analog)
 #define PIN_TURBIDITY  35  // Sensor Turbidity (Analog)
 #define PIN_TRIG       5   // Ultrasonik Trigger
@@ -41,7 +41,8 @@ DeviceAddress alamatSensorSuhu;
 float g_suhuC = 0;
 float g_nilaiPH = 0;
 float g_jarakAir = 0;
-int g_analogTurbidity = 0;
+float g_turbidityNTU = 0;
+
 
 // Prototipe Fungsi
 void setup_wifi();
@@ -134,7 +135,7 @@ void sendDataToVercel() {
     doc["ssid"] = WiFi.SSID(); // Mengirimkan nama WiFi yang sedang terhubung
     doc["temperature"] = g_suhuC;
     doc["ph"] = g_nilaiPH;
-    doc["turbidity"] = g_analogTurbidity;
+    doc["turbidity"] = g_turbidityNTU;
     doc["waterLevel"] = g_jarakAir;
 
     String jsonString;
@@ -174,12 +175,28 @@ void bacaSensorDanEvaluasi() {
     delay(10); 
   }
   int avgPH = sumPH / 10;
-  // Kalkulasi estimasi pH (Perlu kalibrasi ulang dengan buffer solution)
-  // Rumus: pH_7 + (ADC_neutral - ADC_read) * Step
-  float nilaiPH = 7.0 + ((2048 - avgPH) * 14.0 / 4095.0); 
+  // Konversi ADC pH ke Tegangan
+  float voltagePH = avgPH * (3.3 / 4095.0);
+  
+  // Kalkulasi estimasi pH berdasarkan nilai kalibrasi Anda:
+  // Berdasarkan log, air netral (pH ~7) menghasilkan ADC ~3043 atau sekitar 2.45 Volt.
+  // Konstanta 0.18 adalah standar kemiringan (slope) sensor pH analog per 1 nilai pH.
+  float nilaiPH = 7.0 + ((2.45 - voltagePH) / 0.18); 
 
   // 3. Membaca Kekeruhan / Turbidity (Raw ADC)
   int rawTurbidity = analogRead(PIN_TURBIDITY);
+  // Konversi Raw ADC ke Tegangan (Asumsi ESP32: 3.3V referensi, resolusi 12-bit)
+  float teganganTurbidity = rawTurbidity * (3.3 / 4095.0);
+  
+  // Berdasarkan log, air jernih menghasilkan tegangan ~3.18 Volt.
+  // Rumus lama dari DFRobot khusus untuk 5V, sehingga hasilnya berantakan (2500+ NTU)
+  float ntu = 0;
+  if (teganganTurbidity < 3.18) {
+    // Jika tegangan turun di bawah 3.18V, artinya air mulai keruh.
+    // Rumus linear sementara: setiap penurunan 1V = 1000 NTU (Perlu disesuaikan)
+    ntu = (3.18 - teganganTurbidity) * 1000.0; 
+  }
+  if (ntu < 0) ntu = 0; // Pastikan NTU tidak negatif
 
   // 4. Membaca Level Air (Ultrasonik JSN-SR04T)
   digitalWrite(PIN_TRIG, LOW);
@@ -195,14 +212,30 @@ void bacaSensorDanEvaluasi() {
   // Memperbarui variabel global agar bisa diakses oleh fungsi pengirim data
   g_suhuC = suhuC;
   g_nilaiPH = nilaiPH;
-  g_analogTurbidity = rawTurbidity;
+  g_turbidityNTU = ntu; 
   g_jarakAir = jarakAir;
 
-  // Output Serial untuk proses debugging dan kalibrasi
+  // 5. Evaluasi Kualitas Air (Logika Buzzer)
+  // Suhu normal: 25 - 30 C
+  bool isSuhuAbnormal = (suhuC != -127.0) && (suhuC < 25.0 || suhuC > 30.0);
+  // pH normal: 6.5 - 8.5
+  bool isPHAbnormal = (nilaiPH < 6.5 || nilaiPH > 8.5);
+  // Kekeruhan air normal: 0 - 50 NTU (SNI 01-6484.5-2002)
+  bool isTurbidityAbnormal = (ntu > 50.0);
+
+  if (isSuhuAbnormal || isPHAbnormal || isTurbidityAbnormal) {
+    digitalWrite(PIN_BUZZER, HIGH); // Nyalakan buzzer jika ada yang abnormal
+    Serial.println("[ALARM] Peringatan! Parameter kualitas air di luar batas normal.");
+  } else {
+    digitalWrite(PIN_BUZZER, LOW);  // Matikan buzzer jika semua normal
+  }
+
+  // Output Serial yang lebih bersih
   Serial.println("\n--- MONITORING DATA ---");
-  Serial.printf("SUHU      : %.2f C %s\n", suhuC, (suhuC == -127.0) ? "[SENSOR ERROR]" : "[OK]");
-  Serial.printf("PH RAW    : %d | ESTIMASI: %.2f\n", avgPH, nilaiPH);
-  Serial.printf("TURBIDITY : %d (Raw ADC)\n", rawTurbidity);
-  Serial.printf("JARAK AIR : %.2f cm\n", jarakAir);
+  Serial.printf("SUHU      : %.2f C %s\n", suhuC, (suhuC == -127.0) ? "[TIDAK TERDETEKSI]" : (isSuhuAbnormal ? "[ABNORMAL]" : "[OK]"));
+  Serial.printf("PH        : %.2f %s\n", nilaiPH, isPHAbnormal ? "[ABNORMAL]" : "[OK]");
+  Serial.printf("TURBIDITY : %.2f NTU %s\n", ntu, isTurbidityAbnormal ? "[ABNORMAL]" : "[OK]");
+  Serial.printf("JARAK AIR : %.2f cm %s\n", jarakAir, (jarakAir == 0) ? "[TIDAK TERDETEKSI]" : "");
+  Serial.printf("BUZZER    : %s\n", (isSuhuAbnormal || isPHAbnormal || isTurbidityAbnormal) ? "ON (ALARM)" : "OFF");
   Serial.println("-----------------------");
 }
