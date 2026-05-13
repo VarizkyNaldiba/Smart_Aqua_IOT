@@ -189,13 +189,13 @@ void bacaSensorDanEvaluasi() {
   float teganganTurbidity = rawTurbidity * (3.3 / 4095.0);
   
   // Berdasarkan log terbaru, air jernih menghasilkan tegangan ~3.07 Volt.
-  float ntu = 0;
+  float ntu = 1.2; // Sedikit angka dasar (baseline) agar tidak persis 0
   if (teganganTurbidity < 3.07) {
     // Jika tegangan turun di bawah 3.07V, artinya air mulai keruh.
     // Rumus linear sementara: setiap penurunan 1V = 1000 NTU (Perlu disesuaikan)
-    ntu = (3.07 - teganganTurbidity) * 1000.0; 
+    ntu = 1.2 + (3.07 - teganganTurbidity) * 1000.0; 
   }
-  if (ntu < 0) ntu = 0; // Pastikan NTU tidak negatif
+  if (ntu < 0) ntu = 1.2; // Pastikan NTU tidak negatif, kembalikan ke baseline
 
   // 4. Membaca Level Air (Ultrasonik JSN-SR04T)
   digitalWrite(PIN_TRIG, LOW);
