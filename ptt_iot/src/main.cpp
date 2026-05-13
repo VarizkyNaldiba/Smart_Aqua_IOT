@@ -178,23 +178,22 @@ void bacaSensorDanEvaluasi() {
   // Konversi ADC pH ke Tegangan
   float voltagePH = avgPH * (3.3 / 4095.0);
   
-  // Kalkulasi estimasi pH berdasarkan nilai kalibrasi Anda:
-  // Berdasarkan log, air netral (pH ~7) menghasilkan ADC ~3043 atau sekitar 2.45 Volt.
+  // Kalkulasi estimasi pH berdasarkan nilai kalibrasi terbaru (air kran/jernih):
+  // Berdasarkan log, air netral (pH ~7) menghasilkan tegangan sekitar 3.26 Volt.
   // Konstanta 0.18 adalah standar kemiringan (slope) sensor pH analog per 1 nilai pH.
-  float nilaiPH = 7.0 + ((2.45 - voltagePH) / 0.18); 
+  float nilaiPH = 7.0 + ((3.26 - voltagePH) / 0.18); 
 
   // 3. Membaca Kekeruhan / Turbidity (Raw ADC)
   int rawTurbidity = analogRead(PIN_TURBIDITY);
   // Konversi Raw ADC ke Tegangan (Asumsi ESP32: 3.3V referensi, resolusi 12-bit)
   float teganganTurbidity = rawTurbidity * (3.3 / 4095.0);
   
-  // Berdasarkan log, air jernih menghasilkan tegangan ~3.18 Volt.
-  // Rumus lama dari DFRobot khusus untuk 5V, sehingga hasilnya berantakan (2500+ NTU)
+  // Berdasarkan log terbaru, air jernih menghasilkan tegangan ~3.07 Volt.
   float ntu = 0;
-  if (teganganTurbidity < 3.18) {
-    // Jika tegangan turun di bawah 3.18V, artinya air mulai keruh.
+  if (teganganTurbidity < 3.07) {
+    // Jika tegangan turun di bawah 3.07V, artinya air mulai keruh.
     // Rumus linear sementara: setiap penurunan 1V = 1000 NTU (Perlu disesuaikan)
-    ntu = (3.18 - teganganTurbidity) * 1000.0; 
+    ntu = (3.07 - teganganTurbidity) * 1000.0; 
   }
   if (ntu < 0) ntu = 0; // Pastikan NTU tidak negatif
 
