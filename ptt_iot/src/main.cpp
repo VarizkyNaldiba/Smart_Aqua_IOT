@@ -178,35 +178,64 @@ void bacaSensorDanEvaluasi() {
   // Konversi ADC pH ke Tegangan
   float voltagePH = avgPH * (3.3 / 4095.0);
   
-  // Kalkulasi estimasi pH berdasarkan nilai kalibrasi terbaru (air kran/jernih):
-  // Berdasarkan log, air netral (pH ~7) menghasilkan tegangan sekitar 3.26 Volt.
-  // Konstanta 0.18 adalah standar kemiringan (slope) sensor pH analog per 1 nilai pH.
-  float nilaiPH = 7.0 + ((3.26 - voltagePH) / 0.18); 
+  // Kalkulasi estimasi pH berdasarkan kalibrasi di larutan buffer pH 10.01 @25°C:
+  // [KALIBRASI 17/05/2026] Buffer pH 10.01 → rata-rata tegangan terukur = 1.991 V
+  // V_neutral dihitung: 1.991 + (3.01 × 0.18) = 2.533 V
+  // Slope 0.18 V/pH dipertahankan (kalibrasi 1-titik).
+  float nilaiPH = 7.0 + ((2.533 - voltagePH) / 0.18);
 
-  // 3. Membaca Kekeruhan / Turbidity (Raw ADC)
-  int rawTurbidity = analogRead(PIN_TURBIDITY);
-  // Konversi Raw ADC ke Tegangan (Asumsi ESP32: 3.3V referensi, resolusi 12-bit)
-  float teganganTurbidity = rawTurbidity * (3.3 / 4095.0);
-  
-  // Berdasarkan log terbaru, air jernih menghasilkan tegangan ~3.07 Volt.
-  float ntu = 1.2; // Sedikit angka dasar (baseline) agar tidak persis 0
-  if (teganganTurbidity < 3.07) {
-    // Jika tegangan turun di bawah 3.07V, artinya air mulai keruh.
-    // Rumus linear sementara: setiap penurunan 1V = 1000 NTU (Perlu disesuaikan)
-    ntu = 1.2 + (3.07 - teganganTurbidity) * 1000.0; 
+  // 3. Membaca Kekeruhan / Turbidity (Median filter 20 sampel untuk stabilitas)
+  // Ambil 20 sampel, sort, lalu average 10 nilai tengah (buang 5 terluar di atas & bawah)
+  int turbSamples[20];
+  for (int i = 0; i < 20; i++) {
+    turbSamples[i] = analogRead(PIN_TURBIDITY);
+    delay(5);
   }
-  if (ntu < 0) ntu = 1.2; // Pastikan NTU tidak negatif, kembalikan ke baseline
+  // Bubble sort ascending
+  for (int i = 0; i < 19; i++) {
+    for (int j = 0; j < 19 - i; j++) {
+      if (turbSamples[j] > turbSamples[j + 1]) {
+        int tmp = turbSamples[j];
+        turbSamples[j] = turbSamples[j + 1];
+        turbSamples[j + 1] = tmp;
+      }
+    }
+  }
+  // Rata-rata 10 nilai tengah (index 5-14), buang 5 terkecil & 5 terbesar
+  long sumTurbidity = 0;
+  for (int i = 5; i < 15; i++) sumTurbidity += turbSamples[i];
+  int rawTurbidity = sumTurbidity / 10;
+  // Konversi ke Tegangan (ESP32: 3.3V referensi, resolusi 12-bit)
+  float teganganTurbidity = rawTurbidity * (3.3 / 4095.0);
+
+  // [KALIBRASI 17/05/2026] V_CLEAR = tegangan sensor saat air jernih di posisi terpasang.
+  // PERLU RE-KALIBRASI: baca tegangan di Serial Monitor saat air kran jernih stabil,
+  // lalu ganti nilai V_CLEAR di bawah dengan tegangan tersebut.
+  // Slope 1000 NTU/V adalah estimasi — perlu larutan standar untuk kalibrasi akurat.
+  const float V_CLEAR = 2.950; // TODO: ganti dengan tegangan air jernih di posisi terpasang
+  float ntu = 0.0;
+  if (teganganTurbidity < V_CLEAR) {
+    ntu = (V_CLEAR - teganganTurbidity) * 1000.0;
+  }
+  if (ntu < 0) ntu = 0.0;
 
   // 4. Membaca Level Air (Ultrasonik JSN-SR04T)
+  // JSN-SR04T memerlukan trigger HIGH minimal 20µs (berbeda dengan HC-SR04 yg 10µs)
   digitalWrite(PIN_TRIG, LOW);
-  delayMicroseconds(2);
+  delayMicroseconds(5);   // Stabilisasi sebelum trigger
   digitalWrite(PIN_TRIG, HIGH);
-  delayMicroseconds(10);
+  delayMicroseconds(20);  // Trigger pulse 20µs untuk JSN-SR04T
   digitalWrite(PIN_TRIG, LOW);
-  
-  long durasi = pulseIn(PIN_ECHO, HIGH, 30000); // Timeout 30ms jika tidak ada echo
-  // Jarak = (waktu * kecepatan suara) / 2
-  float jarakAir = (durasi == 0) ? 0 : durasi * 0.034 / 2; 
+
+  long durasi = pulseIn(PIN_ECHO, HIGH, 40000); // Timeout 40ms (~680cm max range)
+
+  // Kecepatan suara dikompensasi berdasarkan suhu aktual (lebih akurat dari konstanta 0.034)
+  // Rumus: v (cm/µs) = (331.3 + 0.606 * T°C) / 10000
+  float kecepatanSuara = (331.3 + 0.606 * suhuC) / 10000.0;
+  float jarakAir = (durasi == 0) ? 0 : durasi * kecepatanSuara / 2.0;
+
+  // Debug: tampilkan durasi raw untuk diagnosa & kalibrasi
+  Serial.printf("ULTRASONIK: durasi raw = %ld µs | kec.suara = %.4f cm/µs\n", durasi, kecepatanSuara);
 
   // Memperbarui variabel global agar bisa diakses oleh fungsi pengirim data
   g_suhuC = suhuC;
@@ -232,8 +261,8 @@ void bacaSensorDanEvaluasi() {
   // Output Serial yang lebih bersih
   Serial.println("\n--- MONITORING DATA ---");
   Serial.printf("SUHU      : %.2f C %s\n", suhuC, (suhuC == -127.0) ? "[TIDAK TERDETEKSI]" : (isSuhuAbnormal ? "[ABNORMAL]" : "[OK]"));
-  Serial.printf("PH        : %.2f %s\n", nilaiPH, isPHAbnormal ? "[ABNORMAL]" : "[OK]");
-  Serial.printf("TURBIDITY : %.2f NTU %s\n", ntu, isTurbidityAbnormal ? "[ABNORMAL]" : "[OK]");
+  Serial.printf("PH        : %.2f %s (RAW ADC: %d | VOLT: %.3f V)\n", nilaiPH, isPHAbnormal ? "[ABNORMAL]" : "[OK]", avgPH, voltagePH);
+  Serial.printf("TURBIDITY : %.2f NTU %s (RAW ADC: %d | VOLT: %.3f V)\n", ntu, isTurbidityAbnormal ? "[ABNORMAL]" : "[OK]", rawTurbidity, teganganTurbidity);
   Serial.printf("JARAK AIR : %.2f cm %s\n", jarakAir, (jarakAir == 0) ? "[TIDAK TERDETEKSI]" : "");
   Serial.printf("BUZZER    : %s\n", (isSuhuAbnormal || isPHAbnormal || isTurbidityAbnormal) ? "ON (ALARM)" : "OFF");
   Serial.println("-----------------------");
