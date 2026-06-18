@@ -95,11 +95,22 @@ void readAllSensors() {
   float kecepatanSuara = (331.3 + 0.606 * suhuC) / 10000.0;
   float jarakAir = (durasi == 0) ? 0 : durasi * kecepatanSuara / 2.0;
 
+  // Hitung Tinggi Air Kolam yang Sebenarnya (Kalibrasi Tinggi Kolam)
+  float tinggiAir = 0.0;
+  if (durasi != 0) {
+    if (activeConfig.pond_height > 0.0) {
+      tinggiAir = activeConfig.pond_height - jarakAir;
+      if (tinggiAir < 0.0) tinggiAir = 0.0; // Batasi agar tidak negatif
+    } else {
+      tinggiAir = jarakAir; // Fallback ke jarak mentah jika tinggi kolam diset 0
+    }
+  }
+
   // 5. Update Struct global
   currentSensorData.temperature = suhuC;
   currentSensorData.ph = nilaiPH;
   currentSensorData.turbidity = ntu;
-  currentSensorData.water_level = jarakAir;
+  currentSensorData.water_level = tinggiAir;
   
   currentSensorData.raw_ph_adc = avgPH;
   currentSensorData.raw_ph_volt = voltagePH;

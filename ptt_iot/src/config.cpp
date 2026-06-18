@@ -10,8 +10,8 @@ void loadDeviceConfig() {
   preferences.begin("aquavion", false);
 
   // Ambil nilai string dengan default value
-  String ssid = preferences.getString("ssid", "JAM GADANG");
-  String pass = preferences.getString("pass", "bukittinggi");
+  String ssid = preferences.getString("ssid", "");
+  String pass = preferences.getString("pass", "");
   String url = preferences.getString("url", "https://aqua-vion.vercel.app/api/mqtt/receive");
   String uid = preferences.getString("uid", "8JAGfvb3EXPKijhoAllz2ObC0Bf2");
   String did = preferences.getString("did", "AQN-IOT-001");
@@ -20,6 +20,7 @@ void loadDeviceConfig() {
   float v_clear = preferences.getFloat("v_clear", 2.950f);
   float ph_v_neut = preferences.getFloat("ph_v_neut", 2.533f);
   float ph_slope = preferences.getFloat("ph_slope", 0.18f);
+  float pond_height = preferences.getFloat("pond_height", 50.0f); // Default 50 cm
 
   preferences.end();
 
@@ -33,6 +34,7 @@ void loadDeviceConfig() {
   activeConfig.v_clear = v_clear;
   activeConfig.ph_v_neutral = ph_v_neut;
   activeConfig.ph_slope = ph_slope;
+  activeConfig.pond_height = pond_height;
 
   Serial.println("--- Konfigurasi Dimuat dari NVS ---");
   Serial.printf("SSID: %s\n", activeConfig.wifi_ssid);
@@ -40,6 +42,7 @@ void loadDeviceConfig() {
   Serial.printf("Device ID: %s\n", activeConfig.device_id);
   Serial.printf("V_CLEAR: %.3f V\n", activeConfig.v_clear);
   Serial.printf("pH V_Neutral: %.3f V | Slope: %.3f\n", activeConfig.ph_v_neutral, activeConfig.ph_slope);
+  Serial.printf("Pond Height: %.2f cm\n", activeConfig.pond_height);
   Serial.println("----------------------------------");
 }
 
@@ -55,6 +58,7 @@ void saveDeviceConfig(const DeviceConfig &newConfig) {
   preferences.putFloat("v_clear", newConfig.v_clear);
   preferences.putFloat("ph_v_neut", newConfig.ph_v_neutral);
   preferences.putFloat("ph_slope", newConfig.ph_slope);
+  preferences.putFloat("pond_height", newConfig.pond_height);
 
   preferences.end();
 

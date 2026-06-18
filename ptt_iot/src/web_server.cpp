@@ -443,13 +443,13 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
         
         <div class="form-row">
           <div class="form-group">
-            <label for="ph_v_neut">Tegangan pH Netral (pH 7)</label>
-            <input type="number" id="ph_v_neut" name="ph_v_neut" step="0.001" placeholder="2.533" required>
+            <label for="ph_slope">Slope Sensor pH (V/pH)</label>
+            <input type="number" id="ph_slope" name="ph_slope" step="0.001" placeholder="0.180" required>
           </div>
           
           <div class="form-group">
-            <label for="ph_slope">Slope Sensor pH (V/pH)</label>
-            <input type="number" id="ph_slope" name="ph_slope" step="0.001" placeholder="0.180" required>
+            <label for="pond_height">Tinggi Kolam Total (cm)</label>
+            <input type="number" id="pond_height" name="pond_height" step="0.1" placeholder="50.0" required>
           </div>
         </div>
 
@@ -483,6 +483,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
           document.getElementById('v_clear').value = parseFloat(data.v_clear).toFixed(3) || '2.950';
           document.getElementById('ph_v_neut').value = parseFloat(data.ph_v_neut).toFixed(3) || '2.533';
           document.getElementById('ph_slope').value = parseFloat(data.ph_slope).toFixed(3) || '0.180';
+          document.getElementById('pond_height').value = parseFloat(data.pond_height).toFixed(1) || '50.0';
         })
         .catch(err => showToast('Gagal memuat konfigurasi perangkat', true));
     }
@@ -611,6 +612,7 @@ void handleApiConfig() {
   doc["v_clear"] = activeConfig.v_clear;
   doc["ph_v_neut"] = activeConfig.ph_v_neutral;
   doc["ph_slope"] = activeConfig.ph_slope;
+  doc["pond_height"] = activeConfig.pond_height;
 
   String json;
   serializeJson(doc, json);
@@ -637,6 +639,7 @@ void handleSave() {
   newCfg.v_clear = server.arg("v_clear").toFloat();
   newCfg.ph_v_neutral = server.arg("ph_v_neut").toFloat();
   newCfg.ph_slope = server.arg("ph_slope").toFloat();
+  newCfg.pond_height = server.arg("pond_height").toFloat();
   
   // Simpan ke Preferences
   saveDeviceConfig(newCfg);

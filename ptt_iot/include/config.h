@@ -25,6 +25,7 @@ struct DeviceConfig {
   float v_clear;         // Kalibrasi Turbidity: Tegangan air jernih
   float ph_v_neutral;    // Kalibrasi pH: Tegangan saat pH 7.0 (V_neutral)
   float ph_slope;        // Kalibrasi pH: V per unit pH (Default: 0.18)
+  float pond_height;     // Kalibrasi Level: Jarak sensor ke dasar kolam (cm)
 };
 
 // Variabel Konfigurasi Global
