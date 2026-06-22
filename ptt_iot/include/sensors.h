@@ -17,7 +17,7 @@ struct SensorData {
   float raw_ph_volt;
   int raw_turbidity_adc;
   float raw_turbidity_volt;
-  long raw_ultrasonic_duration;
+  float raw_ultrasonic_cm; // Raw ultrasonic distance in cm (before calibration)
   
   bool is_alarm_active;        // Status alarm (Buzzer)
 };

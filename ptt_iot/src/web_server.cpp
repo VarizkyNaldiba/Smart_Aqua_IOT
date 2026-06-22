@@ -362,6 +362,13 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
           <span class="t-value" id="val-level">--.- cm</span>
           <span class="t-status status-none" id="status-level">Membaca...</span>
         </div>
+
+        <!-- Raw Ultrasonic Card -->
+        <div class="t-card" id="card-raw-ultrasonic">
+          <span class="t-label">Ultrasonik (Raw cm)</span>
+          <span class="t-value" id="val-raw-ultrasonic">--.- cm</span>
+          <span class="t-status status-none" id="status-raw-ultrasonic">Membaca...</span>
+        </div>
       </div>
 
       <div class="panel-title" style="margin-top: 24px;">
@@ -414,7 +421,13 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
         
         <div class="form-group">
           <label for="pass">WiFi Password</label>
-          <input type="password" id="pass" name="pass" maxlength="64" placeholder="Sandi WiFi">
+          <div style="position: relative; display: flex; align-items: center;">
+            <input type="password" id="pass" name="pass" maxlength="64" placeholder="Sandi WiFi" style="padding-right: 40px; width: 100%;">
+            <button type="button" id="btn-toggle-pass" onclick="togglePasswordVisibility()" style="position: absolute; right: 10px; background: none; border: none; cursor: pointer; color: var(--text-muted); display: flex; align-items: center; justify-content: center; padding: 0;">
+              <svg id="eye-open" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: block;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+              <svg id="eye-closed" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
+            </button>
+          </div>
         </div>
         
         <div class="form-group">
@@ -436,9 +449,15 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
 
         <h3 style="font-size: 13px; color: var(--primary); margin-top: 20px; margin-bottom: 12px; text-transform: uppercase; font-weight: 600;">2. Kalibrasi Sensor</h3>
         
-        <div class="form-group">
-          <label for="v_clear">Tegangan Kekeruhan Air Jernih (V_CLEAR)</label>
-          <input type="number" id="v_clear" name="v_clear" step="0.001" placeholder="2.950" required>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="v_clear">Tegangan Air Jernih V_Clear (V)</label>
+            <input type="number" id="v_clear" name="v_clear" step="0.001" placeholder="3.070" required>
+          </div>
+          <div class="form-group">
+            <label for="ph_v_neut">Tegangan pH Netral V_Neutral (V)</label>
+            <input type="number" id="ph_v_neut" name="ph_v_neut" step="0.001" placeholder="3.260" required>
+          </div>
         </div>
         
         <div class="form-row">
@@ -450,6 +469,12 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
           <div class="form-group">
             <label for="pond_height">Tinggi Kolam Total (cm)</label>
             <input type="number" id="pond_height" name="pond_height" step="0.1" placeholder="50.0" required>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <button type="button" class="btn btn-primary" onclick="autoCalibrateUltrasonic()">Kalibrasi Ultrasonik Otomatis</button>
           </div>
         </div>
 
@@ -467,26 +492,76 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
     </div>
   </div>
 
+  <!-- PANEL SERIAL MONITOR -->
+  <div class="panel" style="width: 100%; max-width: 1100px; margin-top: 24px;">
+    <div class="panel-title" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+      <span style="display: flex; align-items: center; gap: 8px;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+        Web Serial Monitor (Kalibrasi)
+      </span>
+      <div style="display: flex; gap: 8px;">
+        <button type="button" class="btn" onclick="clearLogs()" style="padding: 6px 12px; font-size: 12px; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: var(--danger); width: auto; margin: 0; min-height: unset; height: auto;">Clear</button>
+        <button type="button" class="btn" onclick="copyLogs()" style="padding: 6px 12px; font-size: 12px; background: rgba(14, 165, 233, 0.15); border: 1px solid rgba(14, 165, 233, 0.3); color: var(--primary); width: auto; margin: 0; min-height: unset; height: auto;">Copy</button>
+      </div>
+    </div>
+    <div id="serial-terminal" style="background: #090d16; border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 8px; padding: 12px; height: 250px; overflow-y: auto; font-family: 'Courier New', Courier, monospace; font-size: 13px; color: #10b981; line-height: 1.5; white-space: pre-wrap; text-align: left; box-sizing: border-box;">Membuka koneksi serial monitor...</div>
+  </div>
+
   <div id="toast">Notifikasi</div>
 
   <script>
     // Memuat konfigurasi aktif saat load
-    function loadConfig() {
-      fetch('/api/config')
-        .then(res => res.json())
-        .then(data => {
-          document.getElementById('ssid').value = data.ssid || '';
-          document.getElementById('pass').value = data.pass || '';
-          document.getElementById('url').value = data.url || '';
-          document.getElementById('uid').value = data.uid || '';
-          document.getElementById('did').value = data.did || '';
-          document.getElementById('v_clear').value = parseFloat(data.v_clear).toFixed(3) || '2.950';
-          document.getElementById('ph_v_neut').value = parseFloat(data.ph_v_neut).toFixed(3) || '2.533';
-          document.getElementById('ph_slope').value = parseFloat(data.ph_slope).toFixed(3) || '0.180';
-          document.getElementById('pond_height').value = parseFloat(data.pond_height).toFixed(1) || '50.0';
-        })
-        .catch(err => showToast('Gagal memuat konfigurasi perangkat', true));
-    }
+function loadConfig() {
+  fetch('/api/config')
+    .then(res => res.json())
+    .then(data => {
+      document.getElementById('ssid').value = data.ssid || '';
+      document.getElementById('pass').value = data.pass || '';
+      document.getElementById('url').value = data.url || '';
+      document.getElementById('uid').value = data.uid || '';
+      document.getElementById('did').value = data.did || '';
+      document.getElementById('v_clear').value = parseFloat(data.v_clear).toFixed(3) || '3.070';
+      document.getElementById('ph_v_neut').value = parseFloat(data.ph_v_neut).toFixed(3) || '3.260';
+      document.getElementById('ph_slope').value = parseFloat(data.ph_slope).toFixed(3) || '0.180';
+      document.getElementById('pond_height').value = parseFloat(data.pond_height).toFixed(1) || '50.0';
+      // Offset & scale are now auto‑calibrated; we keep them hidden but still accessible via JS
+      window.ultrasonicOffset = parseFloat(data.ultrasonic_offset) || 0.0;
+      window.ultrasonicScale = parseFloat(data.ultrasonic_scale) || 1.0;
+    })
+    .catch(err => showToast('Gagal memuat konfigurasi perangkat', true));
+}
+
+// ------------------------------------------------------------
+// Automatic ultrasonic calibration UI flow
+// ------------------------------------------------------------
+async function autoCalibrateUltrasonic() {
+  try {
+    // Step 1: empty reference (water level = 0)
+    if (!confirm('Pastikan probe ultrasonik berada pada posisi *air kosong* (jarak 0 cm). Tekan OK setelah siap.')) return;
+    const dataEmpty = await fetch('/api/data').then(r => r.json());
+    const rawEmpty = dataEmpty.raw_ultrasonic_cm;
+    // Step 2: full reference (air penuh / tinggi kolam)
+    if (!confirm('Sekarang letakkan probe pada permukaan *air penuh* (tinggi kolam). Tekan OK setelah siap.')) return;
+    const dataFull = await fetch('/api/data').then(r => r.json());
+    const rawFull = dataFull.raw_ultrasonic_cm;
+    // Send to server for calculation
+    const payload = { rawEmpty, rawFull };
+    const resp = await fetch('/api/calibrate_ultrasonic', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const result = await resp.json();
+    window.ultrasonicOffset = result.offset;
+    window.ultrasonicScale = result.scale;
+    alert(`Kalibrasi selesai!\nOffset = ${result.offset.toFixed(3)} cm\nScale = ${result.scale.toFixed(3)}`);
+    // Refresh config UI (optional)
+    loadConfig();
+  } catch (e) {
+    console.error(e);
+    showToast('Kalibrasi gagal: ' + e, true);
+  }
+}
 
     // Polling data sensor dan diagnosa
     function pollData() {
@@ -498,6 +573,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
           updateCard('ph', d.ph, d.ph.toFixed(2), d.ph < 6.5 || d.ph > 8.5);
           updateCard('turb', d.turbidity, d.turbidity.toFixed(1) + ' NTU', d.turbidity > 50);
           updateCard('level', d.water_level, d.water_level.toFixed(1) + ' cm', d.water_level == 0);
+          updateCard('raw-ultrasonic', d.raw_ultrasonic_cm, d.raw_ultrasonic_cm.toFixed(1) + ' cm', d.raw_ultrasonic_cm == 0);
 
           // Update Diagnostics
           document.getElementById('sys-wifimode').innerText = d.wifi_mode;
@@ -562,11 +638,62 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       }
     }
 
+    function togglePasswordVisibility() {
+      const passInput = document.getElementById('pass');
+      const eyeOpen = document.getElementById('eye-open');
+      const eyeClosed = document.getElementById('eye-closed');
+      if (passInput.type === 'password') {
+        passInput.type = 'text';
+        eyeOpen.style.display = 'none';
+        eyeClosed.style.display = 'block';
+      } else {
+        passInput.type = 'password';
+        eyeOpen.style.display = 'block';
+        eyeClosed.style.display = 'none';
+      }
+    }
+
+    function pollLogs() {
+      fetch('/api/logs')
+        .then(res => res.json())
+        .then(data => {
+          const term = document.getElementById('serial-terminal');
+          if (data.length === 0) {
+            term.innerText = "Belum ada log serial.";
+          } else {
+            term.innerText = data.join('\n');
+            term.scrollTop = term.scrollHeight;
+          }
+        })
+        .catch(err => {
+          document.getElementById('serial-terminal').innerText = "Gagal memuat log serial...";
+        });
+    }
+
+    function clearLogs() {
+      fetch('/api/logs/clear', { method: 'POST' })
+        .then(res => res.json())
+        .then(data => {
+          document.getElementById('serial-terminal').innerText = "";
+          showToast('Log serial berhasil dibersihkan');
+        })
+        .catch(() => showToast('Gagal membersihkan log', true));
+    }
+
+    function copyLogs() {
+      const text = document.getElementById('serial-terminal').innerText;
+      navigator.clipboard.writeText(text)
+        .then(() => showToast('Log berhasil disalin ke clipboard!'))
+        .catch(() => showToast('Gagal menyalin log', true));
+    }
+
     // Inisialisasi
     window.onload = function() {
       loadConfig();
       pollData();
+      pollLogs();
       setInterval(pollData, 2000);
+      setInterval(pollLogs, 2000);
     };
   </script>
 </body>
@@ -587,6 +714,7 @@ void handleApiData() {
   doc["ph"] = currentSensorData.ph;
   doc["turbidity"] = currentSensorData.turbidity;
   doc["water_level"] = currentSensorData.water_level;
+  doc["raw_ultrasonic_cm"] = currentSensorData.raw_ultrasonic_cm;
   doc["is_alarm_active"] = currentSensorData.is_alarm_active;
 
   // Diagnostik sistem
@@ -613,10 +741,55 @@ void handleApiConfig() {
   doc["ph_v_neut"] = activeConfig.ph_v_neutral;
   doc["ph_slope"] = activeConfig.ph_slope;
   doc["pond_height"] = activeConfig.pond_height;
+  doc["ultrasonic_offset"] = activeConfig.ultrasonic_offset;
+  doc["ultrasonic_scale"] = activeConfig.ultrasonic_scale;
 
   String json;
   serializeJson(doc, json);
   server.send(200, "application/json", json);
+}
+
+// ------------------------------------------------------------
+// Automatic ultrasonic calibration endpoint
+// ------------------------------------------------------------
+void handleCalibrateUltrasonic() {
+  if (server.method() != HTTP_POST) {
+    server.send(405, "text/plain", "Method Not Allowed");
+    return;
+  }
+  // Expect JSON body: {"rawEmpty":float, "rawFull":float}
+  String body = server.arg("plain");
+  JsonDocument payload;
+  DeserializationError err = deserializeJson(payload, body);
+  if (err) {
+    server.send(400, "application/json", "{\"error\":\"Invalid JSON\"}");
+    return;
+  }
+  float rawEmpty = payload["rawEmpty"].as<float>();
+  float rawFull  = payload["rawFull"].as<float>();
+  // Known distances: empty = pond_height, full = 0
+  float distEmpty = activeConfig.pond_height;
+  float distFull  = 0.0f;
+  // Prevent division by zero
+  if (abs(rawFull - rawEmpty) < 0.001) {
+    server.send(400, "application/json", "{\"error\":\"Invalid measurement range\"}");
+    return;
+  }
+  float scale = (distFull - distEmpty) / (rawFull - rawEmpty);
+  float offset = distEmpty - rawEmpty * scale;
+  // Update config and persist
+  activeConfig.ultrasonic_scale = scale;
+  activeConfig.ultrasonic_offset = offset;
+  saveDeviceConfig(activeConfig);
+  // Log calibration
+  addLogf("[Kalibrasi Ultrasonik] rawEmpty=%.3f rawFull=%.3f offset=%.3f scale=%.3f", rawEmpty, rawFull, offset, scale);
+  // Respond with new parameters
+  JsonDocument resp;
+  resp["offset"] = offset;
+  resp["scale"] = scale;
+  String jsonResp;
+  serializeJson(resp, jsonResp);
+  server.send(200, "application/json", jsonResp);
 }
 
 // Callback untuk Route Save (Simpan Konfigurasi)
@@ -640,6 +813,8 @@ void handleSave() {
   newCfg.ph_v_neutral = server.arg("ph_v_neut").toFloat();
   newCfg.ph_slope = server.arg("ph_slope").toFloat();
   newCfg.pond_height = server.arg("pond_height").toFloat();
+  newCfg.ultrasonic_offset = server.arg("ultrasonic_offset").toFloat();
+  newCfg.ultrasonic_scale = server.arg("ultrasonic_scale").toFloat();
   
   // Simpan ke Preferences
   saveDeviceConfig(newCfg);
@@ -688,12 +863,42 @@ void handleReboot() {
   shouldReboot = true;
 }
 
+// Callback untuk Route API Logs
+void handleApiLogs() {
+  JsonDocument doc;
+  JsonArray arr = doc.to<JsonArray>();
+  
+  int startIdx = 0;
+  if (logCount == LOG_MAX_LINES) {
+    startIdx = logHead;
+  }
+  
+  for (int i = 0; i < logCount; i++) {
+    int idx = (startIdx + i) % LOG_MAX_LINES;
+    arr.add(systemLogs[idx]);
+  }
+  
+  String json;
+  serializeJson(doc, json);
+  server.send(200, "application/json", json);
+}
+
+// Callback untuk Route Clear Logs
+void handleApiLogsClear() {
+  logHead = 0;
+  logCount = 0;
+  server.send(200, "application/json", "{\"status\":\"success\"}");
+}
+
 void startWebServer() {
   server.on("/", HTTP_GET, handleIndex);
   server.on("/api/data", HTTP_GET, handleApiData);
   server.on("/api/config", HTTP_GET, handleApiConfig);
+  server.on("/api/logs", HTTP_GET, handleApiLogs);
+  server.on("/api/logs/clear", HTTP_POST, handleApiLogsClear);
   server.on("/save", HTTP_POST, handleSave);
   server.on("/reboot", HTTP_GET, handleReboot);
+  server.on("/api/calibrate_ultrasonic", HTTP_POST, handleCalibrateUltrasonic);
   
   // Redirect kueri Captive Portal di mode AP
   server.onNotFound([]() {

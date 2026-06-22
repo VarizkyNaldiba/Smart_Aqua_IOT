@@ -21,9 +21,9 @@ void sendDataToVercel();
 void setup() {
   Serial.begin(115200);
   delay(500);
-  Serial.println("\n==================================");
-  Serial.println("   Memulai Sistem AquaVion...     ");
-  Serial.println("==================================");
+  addLog("\n==================================");
+  addLog("   Memulai Sistem AquaVion...     ");
+  addLog("==================================");
 
   // A. Muat konfigurasi dari NVS Preferences
   loadDeviceConfig();
@@ -37,7 +37,7 @@ void setup() {
   // D. Jalankan local Web Server
   startWebServer();
 
-  Serial.println("\n--- Sistem AquaVion Ready ---");
+  addLog("\n--- Sistem AquaVion Ready ---");
 }
 
 // ==========================================
@@ -61,23 +61,23 @@ void loop() {
     readAllSensors();
 
     // Log pembacaan sensor ke Serial Monitor
-    Serial.println("\n--- MONITORING DATA ---");
-    Serial.printf("SUHU      : %.2f C %s\n", 
+    addLog("\n--- MONITORING DATA ---");
+    addLogf("SUHU      : %.2f C %s", 
                   currentSensorData.temperature, 
                   (currentSensorData.temperature < 25.0 || currentSensorData.temperature > 30.0) ? "[ABNORMAL]" : "[OK]");
-    Serial.printf("PH        : %.2f %s (RAW ADC: %d | VOLT: %.3f V)\n", 
+    addLogf("PH        : %.2f %s (RAW ADC: %d | VOLT: %.3f V)", 
                   currentSensorData.ph, 
                   (currentSensorData.ph < 6.5 || currentSensorData.ph > 8.5) ? "[ABNORMAL]" : "[OK]", 
                   currentSensorData.raw_ph_adc, 
                   currentSensorData.raw_ph_volt);
-    Serial.printf("TURBIDITY : %.2f NTU %s (RAW ADC: %d | VOLT: %.3f V)\n", 
+    addLogf("TURBIDITY : %.2f NTU %s (RAW ADC: %d | VOLT: %.3f V)", 
                   currentSensorData.turbidity, 
                   (currentSensorData.turbidity > 50.0) ? "[ABNORMAL]" : "[OK]", 
                   currentSensorData.raw_turbidity_adc, 
                   currentSensorData.raw_turbidity_volt);
-    Serial.printf("JARAK AIR : %.2f cm\n", currentSensorData.water_level);
-    Serial.printf("BUZZER    : %s\n", currentSensorData.is_alarm_active ? "ON (ALARM)" : "OFF");
-    Serial.println("-----------------------");
+    addLogf("JARAK AIR : %.2f cm", currentSensorData.water_level);
+    addLogf("BUZZER    : %s", currentSensorData.is_alarm_active ? "ON (ALARM)" : "OFF");
+    addLog("-----------------------");
   }
 
   // Timer pengiriman data ke server Vercel (setiap 15 detik)

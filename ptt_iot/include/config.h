@@ -12,7 +12,7 @@
 #define PIN_TRIG       5    // Ultrasonik Trigger
 #define PIN_ECHO       18   // Ultrasonik Echo
 #define PIN_BUZZER     2    // Alarm/Indikator
-
+             
 // ==========================================
 // 2. STRUKTUR KONFIGURASI PERANGKAT
 // ==========================================
@@ -26,6 +26,8 @@ struct DeviceConfig {
   float ph_v_neutral;    // Kalibrasi pH: Tegangan saat pH 7.0 (V_neutral)
   float ph_slope;        // Kalibrasi pH: V per unit pH (Default: 0.18)
   float pond_height;     // Kalibrasi Level: Jarak sensor ke dasar kolam (cm)
+  float ultrasonic_offset;   // Offset (cm) for ultrasonic distance
+  float ultrasonic_scale;    // Scale factor (×) for ultrasonic distance
 };
 
 // Variabel Konfigurasi Global
@@ -36,5 +38,15 @@ extern DeviceConfig activeConfig;
 // ==========================================
 void loadDeviceConfig();
 void saveDeviceConfig(const DeviceConfig &newConfig);
+
+// ==========================================
+// 4. LOGGING SYSTEM FOR WEB SERIAL MONITOR
+// ==========================================
+#define LOG_MAX_LINES 50
+extern String systemLogs[LOG_MAX_LINES];
+extern int logHead;
+extern int logCount;
+void addLog(const String &line);
+void addLogf(const char *format, ...);
 
 #endif // CONFIG_H
